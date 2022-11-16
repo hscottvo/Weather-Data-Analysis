@@ -1,23 +1,32 @@
 from datetime import datetime, timedelta
+import requests
+import pandas as pd
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from pyowm import OWM
-from pyowm.utils import config
-from pyowm.utils import timestamps
 
 
 def test():
-    print("Hello world")
-    owm = OWM("fdcc86acf4e1025e275556082759b630")
+    response = requests.get(
+        "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&hourly=temperature_2m"
+    )
+    # print(response.json())
+    out = pd.DataFrame(
+        [response.json()["hourly"]["time"], response.json()["hourly"]["temperature_2m"]]
+    ).T
+    out.columns = ["hour", "temp"]
+
+    out["hour"] = pd.to_datetime(out["hour"])
+    print(out.dtypes)
+    out.to_csv("output.csv")
 
 
 default_args = {"owner": "scott", "retries": 5, "retry_delay": timedelta(minutes=2)}
 
 with DAG(
-    dag_id="our_first_dag_v5",
+    dag_id="Hourly-Temps",
     default_args=default_args,
-    description="This is our first dag that we write",
+    description="Gets hourly temps at a certain lat/long",
     start_date=datetime(2021, 7, 29, 2),
     schedule_interval="@daily",
 ) as dag:
